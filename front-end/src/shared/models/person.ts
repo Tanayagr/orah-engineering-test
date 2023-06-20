@@ -6,5 +6,6 @@ export interface Person {
 }
 
 export const PersonHelper = {
-  getFullName: (p: Person) => `${p.first_name} ${p.last_name}`,
+  getFullNameByFirstName: (p: Person) => `${p.first_name} ${p.last_name}`,
+  getFullNameByLastName: (p: Person) => `${p.last_name} ${p.first_name}`,
 }

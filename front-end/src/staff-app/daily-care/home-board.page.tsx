@@ -1,39 +1,69 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo, useCallback, useReducer } from "react"
 import styled from "styled-components"
 import Button from "@material-ui/core/ButtonBase"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { Spacing, BorderRadius, FontWeight } from "shared/styles/styles"
 import { Colors } from "shared/styles/colors"
 import { CenteredContainer } from "shared/components/centered-container/centered-container.component"
-import { Person } from "shared/models/person"
+import { Person, PersonHelper } from "shared/models/person"
 import { useApi } from "shared/hooks/use-api"
 import { StudentListTile } from "staff-app/components/student-list-tile/student-list-tile.component"
 import { ActiveRollOverlay, ActiveRollAction } from "staff-app/components/active-roll-overlay/active-roll-overlay.component"
 
+const sortByLabels = {
+  firstName: "First Name",
+  lastName: "Last Name",
+}
+const sortOrderSortFactorMapping = { ASC: 1, DSC: -1 }
+const sortByTransformFnMapping = {
+  firstName: PersonHelper.getFullNameByFirstName,
+  lastName: PersonHelper.getFullNameByLastName,
+}
+
 export const HomeBoardPage: React.FC = () => {
   const [isRollMode, setIsRollMode] = useState(false)
-  const [getStudents, data, loadState] = useApi<{ students: Person[] }>({ url: "get-homeboard-students" })
+  const [getStudents, data, loadState] = useApi<{ students: Person[] }>({
+    url: "get-homeboard-students",
+  })
+  const [toggleSortOptions, sortState] = useHomePageSort({
+    sortBy: "firstName",
+    sortOrder: "ASC",
+  })
+  const sortedData = useMemo(() => {
+    const sortFactor = sortOrderSortFactorMapping[sortState.sortOrder]
+    const transformFn = sortByTransformFnMapping[sortState.sortBy]
+    return {
+      ...data,
+      students: [...(data?.students ?? [])].sort((a, b) => {
+        const aFullName = transformFn(a).toLowerCase()
+        const bFullName = transformFn(b).toLowerCase()
+        return aFullName < bFullName ? -sortFactor : sortFactor
+      }),
+    }
+  }, [data, sortState])
 
   useEffect(() => {
     void getStudents()
   }, [getStudents])
 
-  const onToolbarAction = (action: ToolbarAction) => {
+  const onToolbarAction = useCallback((action: ToolbarAction, value?: ToolbarActionValues) => {
     if (action === "roll") {
       setIsRollMode(true)
+    } else if (action === "sort") {
+      toggleSortOptions(value)
     }
-  }
+  }, [])
 
-  const onActiveRollAction = (action: ActiveRollAction) => {
+  const onActiveRollAction = useCallback((action: ActiveRollAction) => {
     if (action === "exit") {
       setIsRollMode(false)
     }
-  }
+  }, [])
 
   return (
     <>
       <S.PageContainer>
-        <Toolbar onItemClick={onToolbarAction} />
+        <Toolbar sortBy={sortState.sortBy} sortOrder={sortState.sortOrder} onItemClick={onToolbarAction} />
 
         {loadState === "loading" && (
           <CenteredContainer>
@@ -43,7 +73,7 @@ export const HomeBoardPage: React.FC = () => {
 
         {loadState === "loaded" && data?.students && (
           <>
-            {data.students.map((s) => (
+            {sortedData.students.map((s) => (
               <StudentListTile key={s.id} isRollMode={isRollMode} student={s} />
             ))}
           </>
@@ -61,14 +91,21 @@ export const HomeBoardPage: React.FC = () => {
 }
 
 type ToolbarAction = "roll" | "sort"
+type ToolbarActionValues = keyof HomePageSortOptions
+
 interface ToolbarProps {
-  onItemClick: (action: ToolbarAction, value?: string) => void
+  sortBy: SortBy
+  sortOrder: SortOrder
+  onItemClick: (action: ToolbarAction, value?: ToolbarActionValues) => void
 }
 const Toolbar: React.FC<ToolbarProps> = (props) => {
-  const { onItemClick } = props
+  const { sortBy, sortOrder, onItemClick } = props
   return (
     <S.ToolbarContainer>
-      <div onClick={() => onItemClick("sort")}>First Name</div>
+      <div>
+        <S.Button onClick={() => onItemClick("sort", "sortBy")}>{sortByLabels[sortBy]}</S.Button>
+        <S.Button onClick={() => onItemClick("sort", "sortOrder")}>{sortOrder}</S.Button>
+      </div>
       <div>Search</div>
       <S.Button onClick={() => onItemClick("roll")}>Start Roll</S.Button>
     </S.ToolbarContainer>
@@ -99,4 +136,37 @@ const S = {
       border-radius: ${BorderRadius.default};
     }
   `,
+}
+
+type SortBy = "firstName" | "lastName"
+type SortOrder = "ASC" | "DSC"
+
+interface HomePageSortOptions {
+  sortBy: SortBy
+  sortOrder: SortOrder
+}
+
+function useHomePageSort({ sortBy, sortOrder }: HomePageSortOptions) {
+  const [state, dispatch] = useReducer(
+    (state: HomePageSortOptions, action: { type?: keyof HomePageSortOptions }): HomePageSortOptions => {
+      switch (action.type) {
+        case "sortBy": {
+          return { ...state, sortBy: state.sortBy === "firstName" ? "lastName" : "firstName" }
+        }
+        case "sortOrder": {
+          return { ...state, sortOrder: state.sortOrder === "ASC" ? "DSC" : "ASC" }
+        }
+        default: {
+          return state
+        }
+      }
+    },
+    { sortBy, sortOrder }
+  )
+
+  const toggleSort = useCallback((type?: keyof HomePageSortOptions) => {
+    dispatch({ type })
+  }, [])
+
+  return [toggleSort, state] as const
 }

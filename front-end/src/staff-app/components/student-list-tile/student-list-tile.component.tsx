@@ -15,7 +15,7 @@ export const StudentListTile: React.FC<Props> = ({ isRollMode, student }) => {
     <S.Container>
       <S.Avatar url={Images.avatar}></S.Avatar>
       <S.Content>
-        <div>{PersonHelper.getFullName(student)}</div>
+        <div>{PersonHelper.getFullNameByFirstName(student)}</div>
       </S.Content>
       {isRollMode && (
         <S.Roll>
