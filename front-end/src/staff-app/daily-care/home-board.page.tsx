@@ -90,7 +90,11 @@ export const HomeBoardPage: React.FC = () => {
         )}
 
         {loadState === "loaded" && data?.students && (
-          <>{filteredSortedData.students.map((s) => (console.log("aa"), (<StudentListTile key={s.id} isRollMode={isRollMode} student={s} />)))}</>
+          <>
+            {filteredSortedData.students.map((s) => (
+              <StudentListTile key={s.id} isRollMode={isRollMode} student={s} />
+            ))}
+          </>
         )}
 
         {loadState === "error" && (
