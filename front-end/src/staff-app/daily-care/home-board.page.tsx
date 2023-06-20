@@ -73,7 +73,7 @@ export const HomeBoardPage: React.FC = () => {
 
   const onSearchTextChange = useCallback(
     debounce((newValue: string) => {
-      setSearchText(newValue.toLowerCase())
+      setSearchText(newValue.toLowerCase().trim())
     }, 300),
     []
   )
