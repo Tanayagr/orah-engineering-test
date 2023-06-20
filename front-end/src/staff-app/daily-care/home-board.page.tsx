@@ -9,6 +9,7 @@ import { Person, PersonHelper } from "shared/models/person"
 import { useApi } from "shared/hooks/use-api"
 import { StudentListTile } from "staff-app/components/student-list-tile/student-list-tile.component"
 import { ActiveRollOverlay, ActiveRollAction } from "staff-app/components/active-roll-overlay/active-roll-overlay.component"
+import debounce from "shared/helpers/debounce"
 
 const sortByLabels = {
   firstName: "First Name",
@@ -22,6 +23,7 @@ const sortByTransformFnMapping = {
 
 export const HomeBoardPage: React.FC = () => {
   const [isRollMode, setIsRollMode] = useState(false)
+  const [searchText, setSearchText] = useState("")
   const [getStudents, data, loadState] = useApi<{ students: Person[] }>({
     url: "get-homeboard-students",
   })
@@ -41,6 +43,15 @@ export const HomeBoardPage: React.FC = () => {
       }),
     }
   }, [data, sortState])
+  const filteredSortedData = useMemo(() => {
+    return {
+      ...sortedData,
+      students: [...sortedData.students].filter((student) => {
+        const fullName = PersonHelper.getFullNameByFirstName(student).toLowerCase()
+        return fullName.includes(searchText)
+      }),
+    }
+  }, [sortedData, searchText])
 
   useEffect(() => {
     void getStudents()
@@ -60,10 +71,17 @@ export const HomeBoardPage: React.FC = () => {
     }
   }, [])
 
+  const onSearchTextChange = useCallback(
+    debounce((newValue: string) => {
+      setSearchText(newValue.toLowerCase())
+    }, 300),
+    []
+  )
+
   return (
     <>
       <S.PageContainer>
-        <Toolbar sortBy={sortState.sortBy} sortOrder={sortState.sortOrder} onItemClick={onToolbarAction} />
+        <Toolbar sortBy={sortState.sortBy} sortOrder={sortState.sortOrder} onItemClick={onToolbarAction} onSearchTextChange={onSearchTextChange} />
 
         {loadState === "loading" && (
           <CenteredContainer>
@@ -72,11 +90,7 @@ export const HomeBoardPage: React.FC = () => {
         )}
 
         {loadState === "loaded" && data?.students && (
-          <>
-            {sortedData.students.map((s) => (
-              <StudentListTile key={s.id} isRollMode={isRollMode} student={s} />
-            ))}
-          </>
+          <>{filteredSortedData.students.map((s) => (console.log("aa"), (<StudentListTile key={s.id} isRollMode={isRollMode} student={s} />)))}</>
         )}
 
         {loadState === "error" && (
@@ -97,16 +111,19 @@ interface ToolbarProps {
   sortBy: SortBy
   sortOrder: SortOrder
   onItemClick: (action: ToolbarAction, value?: ToolbarActionValues) => void
+  onSearchTextChange: (searchText: string) => void
 }
 const Toolbar: React.FC<ToolbarProps> = (props) => {
-  const { sortBy, sortOrder, onItemClick } = props
+  const { sortBy, sortOrder, onItemClick, onSearchTextChange } = props
   return (
     <S.ToolbarContainer>
       <div>
         <S.Button onClick={() => onItemClick("sort", "sortBy")}>{sortByLabels[sortBy]}</S.Button>
         <S.Button onClick={() => onItemClick("sort", "sortOrder")}>{sortOrder}</S.Button>
       </div>
-      <div>Search</div>
+      <div>
+        <input type="text" placeholder="Search" onChange={(e) => onSearchTextChange(e.target.value)} />
+      </div>
       <S.Button onClick={() => onItemClick("roll")}>Start Roll</S.Button>
     </S.ToolbarContainer>
   )
