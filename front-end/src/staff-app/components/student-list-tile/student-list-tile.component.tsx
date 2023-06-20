@@ -1,16 +1,22 @@
-import React from "react"
+import React, { useCallback } from "react"
 import styled from "styled-components"
 import { Spacing, BorderRadius, FontWeight } from "shared/styles/styles"
 import { Images } from "assets/images"
 import { Colors } from "shared/styles/colors"
 import { Person, PersonHelper } from "shared/models/person"
 import { RollStateSwitcher } from "staff-app/components/roll-state/roll-state-switcher.component"
+import { EventManagerInstance } from "shared/helpers/event-manager"
+import { RollStateType } from "shared/models/roll"
 
 interface Props {
   isRollMode?: boolean
   student: Person
 }
 export const StudentListTile: React.FC<Props> = ({ isRollMode, student }) => {
+  const onRollStateChange = useCallback((newState: RollStateType) => {
+    EventManagerInstance.emit("rollStateChange", { student, newState })
+  }, [])
+
   return (
     <S.Container>
       <S.Avatar url={Images.avatar}></S.Avatar>
@@ -19,7 +25,7 @@ export const StudentListTile: React.FC<Props> = ({ isRollMode, student }) => {
       </S.Content>
       {isRollMode && (
         <S.Roll>
-          <RollStateSwitcher />
+          <RollStateSwitcher onStateChange={onRollStateChange} />
         </S.Roll>
       )}
     </S.Container>

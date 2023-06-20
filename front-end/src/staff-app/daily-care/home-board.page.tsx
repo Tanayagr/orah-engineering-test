@@ -10,6 +10,8 @@ import { useApi } from "shared/hooks/use-api"
 import { StudentListTile } from "staff-app/components/student-list-tile/student-list-tile.component"
 import { ActiveRollOverlay, ActiveRollAction } from "staff-app/components/active-roll-overlay/active-roll-overlay.component"
 import debounce from "shared/helpers/debounce"
+import { EventManagerInstance } from "shared/helpers/event-manager"
+import { Roll, RollStateType } from "shared/models/roll"
 
 const sortByLabels = {
   firstName: "First Name",
@@ -24,25 +26,38 @@ const sortByTransformFnMapping = {
 export const HomeBoardPage: React.FC = () => {
   const [isRollMode, setIsRollMode] = useState(false)
   const [searchText, setSearchText] = useState("")
+  const [rolls, setRolls] = useState<{ [k: string]: RollStateType }>({})
   const [getStudents, data, loadState] = useApi<{ students: Person[] }>({
     url: "get-homeboard-students",
   })
+  const [saveActiveRoll] = useApi<{ rolls: Roll[] }>({ url: "save-roll" })
   const [toggleSortOptions, sortState] = useHomePageSort({
     sortBy: "firstName",
     sortOrder: "ASC",
   })
+
+  const dataWithRollState = useMemo(() => {
+    return {
+      ...data,
+      students: [...(data?.students ?? [])].map((student) => {
+        return { ...student, roll_state: rolls[student.id] ?? "unmark" } as Person
+      }),
+    }
+  }, [data, rolls])
+
   const sortedData = useMemo(() => {
     const sortFactor = sortOrderSortFactorMapping[sortState.sortOrder]
     const transformFn = sortByTransformFnMapping[sortState.sortBy]
     return {
-      ...data,
-      students: [...(data?.students ?? [])].sort((a, b) => {
+      ...dataWithRollState,
+      students: [...dataWithRollState.students].sort((a, b) => {
         const aFullName = transformFn(a).toLowerCase()
         const bFullName = transformFn(b).toLowerCase()
         return aFullName < bFullName ? -sortFactor : sortFactor
       }),
     }
-  }, [data, sortState])
+  }, [dataWithRollState, sortState])
+
   const filteredSortedData = useMemo(() => {
     return {
       ...sortedData,
@@ -52,6 +67,19 @@ export const HomeBoardPage: React.FC = () => {
       }),
     }
   }, [sortedData, searchText])
+
+  useEffect(() => {
+    const unsubscribe = EventManagerInstance.subscribe("rollStateChange", (payload: { student: Person; newState: RollStateType }) => {
+      const { student, newState } = payload
+      setRolls((prevRolls) => {
+        return {
+          ...prevRolls,
+          [student.id]: newState,
+        }
+      })
+    })
+    return unsubscribe
+  }, [])
 
   useEffect(() => {
     void getStudents()
@@ -65,9 +93,13 @@ export const HomeBoardPage: React.FC = () => {
     }
   }, [])
 
-  const onActiveRollAction = useCallback((action: ActiveRollAction) => {
+  const onActiveRollAction = useCallback((action: ActiveRollAction, value?: string) => {
     if (action === "exit") {
       setIsRollMode(false)
+    } else if (action === "filter") {
+      console.log({ action, value })
+    } else if (action === "complete") {
+      // saveActiveRoll()
     }
   }, [])
 
@@ -103,7 +135,7 @@ export const HomeBoardPage: React.FC = () => {
           </CenteredContainer>
         )}
       </S.PageContainer>
-      <ActiveRollOverlay isActive={isRollMode} onItemClick={onActiveRollAction} />
+      <ActiveRollOverlay isActive={isRollMode} students={filteredSortedData.students} onItemClick={onActiveRollAction} />
     </>
   )
 }
