@@ -17,16 +17,14 @@ export const ActiveRollOverlay: React.FC<Props> = (props) => {
   const { students, isActive, onItemClick } = props
 
   const stateList = useMemo(() => {
-    const rollStateCounts: { [k in RollStateType | "all"]: number } = students.reduce(
-      (acc, student) => {
-        if (student.roll_state) {
-          acc[student.roll_state]++
-        }
-        acc.all++
-        return acc
-      },
-      { all: 0, present: 0, late: 0, absent: 0, unmark: 0 }
-    )
+    const defaultRollStateCounts = { all: 0, present: 0, late: 0, absent: 0, unmark: 0 }
+    const rollStateCounts: { [k in RollStateType | "all"]: number } = students.reduce((acc, student) => {
+      if (student.roll_state) {
+        acc[student.roll_state]++
+      }
+      acc.all++
+      return acc
+    }, defaultRollStateCounts)
     return Object.keys(rollStateCounts)
       .filter((k) => k !== "unmark")
       .map((rollState) => {

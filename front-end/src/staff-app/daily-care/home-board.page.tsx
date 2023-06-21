@@ -27,6 +27,7 @@ export const HomeBoardPage: React.FC = () => {
   const [isRollMode, setIsRollMode] = useState(false)
   const [searchText, setSearchText] = useState("")
   const [rolls, setRolls] = useState<{ [k: string]: RollStateType }>({})
+  const [selectedRollState, setSelectedRollState] = useState<RollStateType | "all">("all")
   const [getStudents, data, loadState] = useApi<{ students: Person[] }>({
     url: "get-homeboard-students",
   })
@@ -59,14 +60,21 @@ export const HomeBoardPage: React.FC = () => {
   }, [dataWithRollState, sortState])
 
   const filteredSortedData = useMemo(() => {
+    const filteredStudentsOnSearchText = [...sortedData.students].filter((student) => {
+      const fullName = PersonHelper.getFullNameByFirstName(student).toLowerCase()
+      return fullName.includes(searchText)
+    })
+    const filteredStudentsOnRollState =
+      selectedRollState === "all"
+        ? filteredStudentsOnSearchText
+        : filteredStudentsOnSearchText.filter((student) => {
+            return student.roll_state === selectedRollState
+          })
     return {
       ...sortedData,
-      students: [...sortedData.students].filter((student) => {
-        const fullName = PersonHelper.getFullNameByFirstName(student).toLowerCase()
-        return fullName.includes(searchText)
-      }),
+      students: filteredStudentsOnRollState,
     }
-  }, [sortedData, searchText])
+  }, [sortedData, searchText, selectedRollState])
 
   useEffect(() => {
     const unsubscribe = EventManagerInstance.subscribe("rollStateChange", (payload: { student: Person; newState: RollStateType }) => {
@@ -97,9 +105,9 @@ export const HomeBoardPage: React.FC = () => {
     if (action === "exit") {
       setIsRollMode(false)
     } else if (action === "filter") {
-      console.log({ action, value })
+      setSelectedRollState(value as RollStateType | "all")
     } else if (action === "complete") {
-      // saveActiveRoll()
+      setIsRollMode(false)
     }
   }, [])
 
@@ -135,7 +143,7 @@ export const HomeBoardPage: React.FC = () => {
           </CenteredContainer>
         )}
       </S.PageContainer>
-      <ActiveRollOverlay isActive={isRollMode} students={filteredSortedData.students} onItemClick={onActiveRollAction} />
+      <ActiveRollOverlay isActive={isRollMode} students={dataWithRollState.students} onItemClick={onActiveRollAction} />
     </>
   )
 }
