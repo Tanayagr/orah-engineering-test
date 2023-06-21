@@ -11,7 +11,7 @@ import { StudentListTile } from "staff-app/components/student-list-tile/student-
 import { ActiveRollOverlay, ActiveRollAction } from "staff-app/components/active-roll-overlay/active-roll-overlay.component"
 import debounce from "shared/helpers/debounce"
 import { EventManagerInstance } from "shared/helpers/event-manager"
-import { Roll, RollStateType } from "shared/models/roll"
+import { Roll, RollInput, RollStateType } from "shared/models/roll"
 
 const sortByLabels = {
   firstName: "First Name",
@@ -101,15 +101,25 @@ export const HomeBoardPage: React.FC = () => {
     }
   }, [])
 
-  const onActiveRollAction = useCallback((action: ActiveRollAction, value?: string) => {
-    if (action === "exit") {
-      setIsRollMode(false)
-    } else if (action === "filter") {
-      setSelectedRollState(value as RollStateType | "all")
-    } else if (action === "complete") {
-      setIsRollMode(false)
-    }
-  }, [])
+  const onActiveRollAction = useCallback(
+    (action: ActiveRollAction, value?: string) => {
+      if (action === "exit") {
+        setIsRollMode(false)
+      } else if (action === "filter") {
+        setSelectedRollState(value as RollStateType | "all")
+      } else if (action === "complete") {
+        setIsRollMode(false)
+        const activeRoll: RollInput = {
+          student_roll_states: Object.entries(rolls).map(([student_id, roll_state]) => {
+            return { student_id: +student_id, roll_state }
+          }),
+        }
+        saveActiveRoll(activeRoll)
+        setRolls({})
+      }
+    },
+    [rolls, saveActiveRoll]
+  )
 
   const onSearchTextChange = useCallback(
     debounce((newValue: string) => {
