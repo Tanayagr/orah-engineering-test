@@ -5,3 +5,10 @@ export interface Activity {
   date: Date
   entity: Roll
 }
+
+export const ActivityHelper = {
+  formateDate: (dStr: Date) => {
+    const d = new Date(dStr)
+    return `${d.toDateString()}`
+  },
+}
